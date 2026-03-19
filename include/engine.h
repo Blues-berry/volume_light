@@ -25,7 +25,7 @@ struct Engine{
   //I use these methods instead of constructors and destructors
   //because I want to be able to control initialization order.
   //You'll see the same idea applied to all manager level classes.
-  bool startUp();
+  bool startUp(const std::string& initialSceneID = "Sponza");
   void shutDown();
 
   //Contains all high level logic and the main application loop

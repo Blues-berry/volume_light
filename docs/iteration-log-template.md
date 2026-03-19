@@ -19,6 +19,8 @@
 - 构建配置：
 - 设备：
 - 驱动版本：
+- 分辨率：
+- Ground Truth 来源：
 
 ## 4. 测试结果
 
@@ -33,7 +35,20 @@
 - 平均帧时间：
 - FPS：
 - 光照 Pass GPU 时间：
-- 截图位置：
+- Light Injection / Voxelization 阶段耗时：
+- Shading 阶段耗时：
+- 光源数量测试点：
+- Throughput per Light：
+- GPU 显存占用 / 资源大小：
+- Voxel / Volume Grid 显存占用：
+- 新增存储产物大小：
+- 运行时图片位置：
+- 光照效果图位置：
+- Ground Truth 图位置：
+- PSNR：
+- SSIM：
+- RMSE：
+- FLIP：
 - 误差/现象：
 
 #### 模式：EquivalentVolumeV1
@@ -45,7 +60,20 @@
 - 平均帧时间：
 - FPS：
 - 光照 Pass GPU 时间：
-- 截图位置：
+- Light Injection / Voxelization 阶段耗时：
+- Shading 阶段耗时：
+- 光源数量测试点：
+- Throughput per Light：
+- GPU 显存占用 / 资源大小：
+- Voxel / Volume Grid 显存占用：
+- 新增存储产物大小：
+- 运行时图片位置：
+- 光照效果图位置：
+- Ground Truth 图位置：
+- PSNR：
+- SSIM：
+- RMSE：
+- FLIP：
 - 误差/现象：
 
 ### 场景：MetalRoughSpheres
@@ -59,7 +87,20 @@
 - 平均帧时间：
 - FPS：
 - 光照 Pass GPU 时间：
-- 截图位置：
+- Light Injection / Voxelization 阶段耗时：
+- Shading 阶段耗时：
+- 光源数量测试点：
+- Throughput per Light：
+- GPU 显存占用 / 资源大小：
+- Voxel / Volume Grid 显存占用：
+- 新增存储产物大小：
+- 运行时图片位置：
+- 光照效果图位置：
+- Ground Truth 图位置：
+- PSNR：
+- SSIM：
+- RMSE：
+- FLIP：
 - 误差/现象：
 
 #### 模式：EquivalentVolumeV1
@@ -71,7 +112,20 @@
 - 平均帧时间：
 - FPS：
 - 光照 Pass GPU 时间：
-- 截图位置：
+- Light Injection / Voxelization 阶段耗时：
+- Shading 阶段耗时：
+- 光源数量测试点：
+- Throughput per Light：
+- GPU 显存占用 / 资源大小：
+- Voxel / Volume Grid 显存占用：
+- 新增存储产物大小：
+- 运行时图片位置：
+- 光照效果图位置：
+- Ground Truth 图位置：
+- PSNR：
+- SSIM：
+- RMSE：
+- FLIP：
 - 误差/现象：
 
 ### 场景：DamagedHelmet
@@ -85,7 +139,20 @@
 - 平均帧时间：
 - FPS：
 - 光照 Pass GPU 时间：
-- 截图位置：
+- Light Injection / Voxelization 阶段耗时：
+- Shading 阶段耗时：
+- 光源数量测试点：
+- Throughput per Light：
+- GPU 显存占用 / 资源大小：
+- Voxel / Volume Grid 显存占用：
+- 新增存储产物大小：
+- 运行时图片位置：
+- 光照效果图位置：
+- Ground Truth 图位置：
+- PSNR：
+- SSIM：
+- RMSE：
+- FLIP：
 - 误差/现象：
 
 #### 模式：EquivalentVolumeV1
@@ -97,13 +164,29 @@
 - 平均帧时间：
 - FPS：
 - 光照 Pass GPU 时间：
-- 截图位置：
+- Light Injection / Voxelization 阶段耗时：
+- Shading 阶段耗时：
+- 光源数量测试点：
+- Throughput per Light：
+- GPU 显存占用 / 资源大小：
+- Voxel / Volume Grid 显存占用：
+- 新增存储产物大小：
+- 运行时图片位置：
+- 光照效果图位置：
+- Ground Truth 图位置：
+- PSNR：
+- SSIM：
+- RMSE：
+- FLIP：
 - 误差/现象：
 
 ## 5. 汇总结论
 
 - 是否达到本轮成功标准：
 - 相对 baseline 的性能变化：
+- 相对 baseline 的计算资源变化：
+- 相对 baseline 的存储资源变化：
+- 光源数量扩展性结论：
 - 主要视觉退化：
 - 主要稳定性问题：
 

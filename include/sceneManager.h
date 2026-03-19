@@ -20,7 +20,7 @@ class SceneManager{
         ~SceneManager();
 
         //Initializes and closes all scene related stuff
-        bool startUp();
+        bool startUp(const std::string& initialSceneID = "Sponza");
         void shutDown();
 
         // Scene switching
@@ -31,6 +31,7 @@ class SceneManager{
 
         //Called by the rendermanager to prep the render queue 
         Scene* getCurrentScene();
+        const std::string& getCurrentSceneID() const;
 
     private:
         bool loadScene(std::string sceneID);

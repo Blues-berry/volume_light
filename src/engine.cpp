@@ -14,7 +14,7 @@ DATE	     : 2018-09-05
 Engine::Engine(){}
 Engine::~Engine(){}
 
-bool Engine::startUp(){
+bool Engine::startUp(const std::string& initialSceneID){
     unsigned int start = SDL_GetTicks(); //Could probably be its own timer class 
 
     //Start up of all SDL and opengl Display related content
@@ -24,7 +24,7 @@ bool Engine::startUp(){
     }
 
     // Inits scene manager and loads default scene
-    if(!gSceneManager.startUp()){
+    if(!gSceneManager.startUp(initialSceneID)){
         printf("Failed to initialize scene manager.\n");
         return false;
     }

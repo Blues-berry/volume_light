@@ -12,18 +12,24 @@ DATE	     : 2018-09-10
 //The diffuse texture is assumed to always exist and always loaded in case you want to do alpha
 //discard. Lower overhead texture setup is something worth investigating here.
 void Mesh::draw(const Shader &shader, bool textured){
+        unsigned int albedoTexture = textures.size() > 0 ? textures[0] : 0;
+        unsigned int emissiveTexture = textures.size() > 1 ? textures[1] : 0;
+        unsigned int normalTexture = textures.size() > 2 ? textures[2] : 0;
+        unsigned int aoTexture = textures.size() > 3 ? textures[3] : 0;
+        unsigned int metalRoughTexture = textures.size() > 4 ? textures[4] : 0;
+
         //Diffuse
         glActiveTexture(GL_TEXTURE0);
         shader.setInt("albedoMap", 0);
-        glBindTexture(GL_TEXTURE_2D, textures[0]);
+        glBindTexture(GL_TEXTURE_2D, albedoTexture);
     if(textured){
             //Emissive
             glActiveTexture(GL_TEXTURE1);
             shader.setInt("emissiveMap", 1);
-            glBindTexture(GL_TEXTURE_2D, textures[1]);
+            glBindTexture(GL_TEXTURE_2D, emissiveTexture);
 
             //Normals
-            if (textures[2] == 0){
+            if (normalTexture == 0){
                 shader.setBool("normalMapped", false);
             }
             else{
@@ -31,10 +37,10 @@ void Mesh::draw(const Shader &shader, bool textured){
             }
             glActiveTexture(GL_TEXTURE2);
             shader.setInt("normalsMap", 2);
-            glBindTexture(GL_TEXTURE_2D, textures[2]);
+            glBindTexture(GL_TEXTURE_2D, normalTexture);
 
             //Ambient Oclussion
-            if (textures[3] == 0){
+            if (aoTexture == 0){
                 shader.setBool("aoMapped", false);
             }
             else{
@@ -42,12 +48,12 @@ void Mesh::draw(const Shader &shader, bool textured){
             }
             glActiveTexture(GL_TEXTURE3);
             shader.setInt("lightMap", 3);
-            glBindTexture(GL_TEXTURE_2D, textures[3]);
+            glBindTexture(GL_TEXTURE_2D, aoTexture);
 
             //Metal / Roughness
             glActiveTexture(GL_TEXTURE4);
             shader.setInt("metalRoughMap", 4);
-            glBindTexture(GL_TEXTURE_2D, textures[4]);
+            glBindTexture(GL_TEXTURE_2D, metalRoughTexture);
 
     }
 

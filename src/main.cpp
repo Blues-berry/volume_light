@@ -11,8 +11,13 @@ PURPOSE      : Program Initialization and shutdown.
 
 //Hybrid Rendering Engine
 int main( int argc, char* args[] ){
+    std::string initialSceneID = "Sponza";
+    if(argc > 1){
+        initialSceneID = args[1];
+    }
+
     Engine HRE;
-    if(HRE.startUp()){
+    if(HRE.startUp(initialSceneID)){
         HRE.run();
     }
     else{

@@ -1,0 +1,50 @@
+{
+    "sceneID": "DamagedHelmet",
+    "skybox": {
+        "id": "barcelona",
+        "hdr": true,
+        "resolution": 512
+    },
+    "models": [{
+        "mesh": "DamagedHelmet.gltf",
+        "IBL": true,
+        "position": [0.0, -0.6, 0.0],
+        "rotation": [0.0, 1.0, 0.0, 0.0],
+        "scaling": [2.0, 2.0, 2.0]
+    }],
+    "camera": {
+        "speed": 0.05,
+        "mouseSens": 0.05,
+        "fov": 50.0,
+        "nearPlane": 0.1,
+        "farPlane": 100.0,
+        "position": [0.0, 0.2, 4.5],
+        "target": [0.0, 0.0, 0.0]
+    },
+    "directionalLight": {
+        "direction": [-0.3, -1.0, 0.2],
+        "distance": 20.0,
+        "color": [1.0, 1.0, 1.0],
+        "strength": 1.4,
+        "zNear": 0.1,
+        "zFar": 100.0,
+        "orthoSize": 20.0,
+        "shadowRes": 2048
+    },
+    "pointLights": [{
+        "position": [-1.8, 1.2, 2.0],
+        "color": [1.0, 0.7, 0.6],
+        "strength": 1.0,
+        "zNear": 0.1,
+        "zFar": 30.0,
+        "shadowRes": 1024
+    },
+    {
+        "position": [1.7, 1.0, 1.5],
+        "color": [0.6, 0.8, 1.0],
+        "strength": 1.0,
+        "zNear": 0.1,
+        "zFar": 30.0,
+        "shadowRes": 1024
+    }]
+}

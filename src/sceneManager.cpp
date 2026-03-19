@@ -14,11 +14,10 @@ SceneManager::~SceneManager(){}
 
 //Starts up the scene manager and loads the default scene. If for whatever reason
 // the scene could not load any model, or there are none defined it quits early.
-bool SceneManager::startUp(){
-    // currentSceneID = "pbrTest";
-    currentSceneID = "Sponza";
+bool SceneManager::startUp(const std::string& initialSceneID){
+    currentSceneID = initialSceneID;
     if (!loadScene(currentSceneID)){
-        printf("Could not load default sponza scene. No models succesfully loaded!\n");
+        printf("Could not load scene %s. No models succesfully loaded!\n", currentSceneID.c_str());
         return false;
     }
     return true;
@@ -49,6 +48,10 @@ void SceneManager::update(unsigned int deltaT){
 
 Scene* SceneManager::getCurrentScene(){
     return currentScene;
+}
+
+const std::string& SceneManager::getCurrentSceneID() const{
+    return currentSceneID;
 }
 
 //Loads the scene with the given ID. If the scene is empty it will declare it an unsuccesful

@@ -10,12 +10,81 @@ DATE	     : 2018-09-08
 #include "geometry.h"
 #include "glm/glm.hpp"
 #include "fileManager.h"
+#include "glad/glad.h"
 #include <string>
+
+namespace {
+unsigned int createSolidTexture(
+    std::unordered_map<std::string, Texture>& textureAtlas,
+    const std::string& key,
+    unsigned char r,
+    unsigned char g,
+    unsigned char b,
+    unsigned char a)
+{
+    if (textureAtlas.count(key) != 0) {
+        return textureAtlas.at(key).textureID;
+    }
+
+    unsigned int textureID = 0;
+    unsigned char pixel[4] = {r, g, b, a};
+    glGenTextures(1, &textureID);
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    Texture texture;
+    texture.textureID = textureID;
+    texture.width = 1;
+    texture.height = 1;
+    texture.nComponents = 4;
+    texture.path = key;
+    textureAtlas.insert({key, texture});
+    return textureID;
+}
+
+unsigned int loadTextureForTypes(
+    const aiMaterial* material,
+    const std::string& directory,
+    std::unordered_map<std::string, Texture>& textureAtlas,
+    std::initializer_list<aiTextureType> textureTypes,
+    bool srgb)
+{
+    aiString texturePath;
+    for (aiTextureType type : textureTypes) {
+        if (material->GetTextureCount(type) == 0) {
+            continue;
+        }
+
+        std::string fullTexturePath = directory;
+        material->GetTexture(type, 0, &texturePath);
+        fullTexturePath.append(texturePath.C_Str());
+
+        if (textureAtlas.count(fullTexturePath) == 0) {
+            Texture texture;
+            texture.loadTexture(fullTexturePath, srgb);
+            textureAtlas.insert({fullTexturePath, texture});
+        }
+
+        return textureAtlas.at(fullTexturePath).textureID;
+    }
+
+    return 0;
+}
+}
 
 //We use assimp to load all our mesh files this 
 void Model::loadModel(std::string path){
     Assimp::Importer importer;
     const aiScene *scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_OptimizeMeshes |aiProcess_CalcTangentSpace | aiProcess_FlipUVs);
+    if (scene == nullptr || scene->mRootNode == nullptr) {
+        printf("Assimp failed to load model: %s\n", path.c_str());
+        return;
+    }
 
     //useful for texture indexing later
     fileExtension = FLOAD::getFileExtension(path);
@@ -78,16 +147,22 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene){
         vertex.position = vector;
 
         //Process tangent
-        vector.x = mesh->mTangents[i].x;
-        vector.y = mesh->mTangents[i].y;
-        vector.z = mesh->mTangents[i].z;
-        vertex.tangent = vector;
+        if (mesh->HasTangentsAndBitangents()){
+            vector.x = mesh->mTangents[i].x;
+            vector.y = mesh->mTangents[i].y;
+            vector.z = mesh->mTangents[i].z;
+            vertex.tangent = vector;
 
-        //Process biTangent
-        vector.x = mesh->mBitangents[i].x;
-        vector.y = mesh->mBitangents[i].y;
-        vector.z = mesh->mBitangents[i].z;
-        vertex.biTangent = vector;
+            //Process biTangent
+            vector.x = mesh->mBitangents[i].x;
+            vector.y = mesh->mBitangents[i].y;
+            vector.z = mesh->mBitangents[i].z;
+            vertex.biTangent = vector;
+        }
+        else{
+            vertex.tangent = glm::vec3(1.0f, 0.0f, 0.0f);
+            vertex.biTangent = glm::vec3(0.0f, 1.0f, 0.0f);
+        }
 
         //Process normals
         vector.x = mesh->mNormals[i].x;
@@ -130,49 +205,54 @@ FIXES::
 2. Make this it's own material class that takes care of it properly
 */
 std::vector<unsigned int> Model::processTextures(const aiMaterial *material){
-    std::vector<unsigned int> textures;
+    std::vector<unsigned int> textures(5, 0);
 
-    //Finding current texture directory
-    aiString texturePath;
-    aiTextureType type;
-    std::string fullTexturePath;
+    // Expected shader slot order:
+    // 0 albedo, 1 emissive, 2 normals, 3 AO/lightmap, 4 metallic-roughness
+    textures[0] = loadTextureForTypes(
+        material,
+        directory,
+        textureAtlas,
+        {aiTextureType_DIFFUSE},
+        true);
 
-    //Checking all texture stacks for each texture type
-    //Checkout assimp docs on texture types
-    for(int tex = aiTextureType_NONE ; tex <= aiTextureType_UNKNOWN; tex++){
-        type = static_cast<aiTextureType>(tex); //making the int value into the enum value
-        fullTexturePath = directory;
+    textures[1] = loadTextureForTypes(
+        material,
+        directory,
+        textureAtlas,
+        {aiTextureType_EMISSIVE},
+        true);
 
-        //If there are any textures of the given type in the material
-        if( material->GetTextureCount(type) > 0 ){
-            //We only care about the first texture assigned we don't expect multiple to be assigned
-            material->GetTexture(type, 0, &texturePath);
-            fullTexturePath = fullTexturePath.append(texturePath.C_Str());
+    textures[2] = loadTextureForTypes(
+        material,
+        directory,
+        textureAtlas,
+        {aiTextureType_NORMALS, aiTextureType_HEIGHT},
+        false);
 
-            //If this texture has not been added to the atlas yet we load it
-            if (textureAtlas.count(fullTexturePath) == 0){
-                Texture texture;
-                bool srgb = false;
-                texture.loadTexture(fullTexturePath, srgb);
-                textureAtlas.insert({fullTexturePath, texture});
-            }
+    textures[3] = loadTextureForTypes(
+        material,
+        directory,
+        textureAtlas,
+        {aiTextureType_LIGHTMAP, aiTextureType_AMBIENT},
+        false);
 
-            //We add it to the texture index array of loaded texture for a given mesh
-            textures.push_back(textureAtlas.at(fullTexturePath).textureID);
-        }
-        else{
-            //For now we always assume that these textures will exist in the current
-            //material. If they do not, we assign 0 to their value.
-            //This will be fixed when the new material model is implemented.
-            switch(type){
-                case aiTextureType_LIGHTMAP:
-                case aiTextureType_EMISSIVE:
-                case aiTextureType_NORMALS:
-                case aiTextureType_UNKNOWN:
-                    textures.push_back(0);
-                break;
-            }
-        }
+    textures[4] = loadTextureForTypes(
+        material,
+        directory,
+        textureAtlas,
+        {aiTextureType_UNKNOWN, aiTextureType_SPECULAR, aiTextureType_SHININESS},
+        false);
+
+    if (textures[0] == 0) {
+        textures[0] = createSolidTexture(textureAtlas, "__default_albedo_white__", 255, 255, 255, 255);
     }
+    if (textures[1] == 0) {
+        textures[1] = createSolidTexture(textureAtlas, "__default_emissive_black__", 0, 0, 0, 255);
+    }
+    if (textures[4] == 0) {
+        textures[4] = createSolidTexture(textureAtlas, "__default_metalrough__", 0, 255, 0, 255);
+    }
+
     return textures;
 }

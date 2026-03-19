@@ -170,8 +170,8 @@ bool RenderManager::initSSBOs(){
             lights[i].position  = glm::vec4(light->position, 1.0f);
             lights[i].color     = glm::vec4(light->color, 1.0f);
             lights[i].enabled   = 1; 
-            lights[i].intensity = 1.0f;
-            lights[i].range     = 65.0f;
+            lights[i].intensity = light->strength;
+            lights[i].range     = light->zFar;
         }
         glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, lightSSBO);
@@ -328,6 +328,9 @@ void RenderManager::render(const unsigned int start){
     //Initiating rendering gui
     ImGui::Begin("Rendering Controls");
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::Text("Current Scene: %s", sceneLocator->getCurrentSceneID().c_str());
+    ImGui::Text("Point Lights: %u", currentScene->pointLightCount);
+    ImGui::Text("Grid Size: %u x %u x %u", gridSizeX, gridSizeY, gridSizeZ);
 
     if(ImGui::CollapsingHeader("Controls")){
         ImGui::Text("Strafe: w a s d");

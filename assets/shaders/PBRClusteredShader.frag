@@ -268,7 +268,7 @@ vec3 calcPointLight(uint index, vec3 normal, vec3 fragPos,
                     float metal, vec3 F0,  float viewDistance){
     //Point light basics
     vec3 position = pointLight[index].position.xyz;
-    vec3 color    = 100.0 * pointLight[index].color.rgb;
+    vec3 color    = 100.0 * pointLight[index].intensity * pointLight[index].color.rgb;
     float radius  = pointLight[index].range;
 
     //Stuff common to the BRDF subfunctions 
