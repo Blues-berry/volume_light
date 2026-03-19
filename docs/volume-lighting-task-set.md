@@ -17,6 +17,7 @@
 
 - `docs/execution-rules.md`
 - `docs/pre-execution-checklist.md`
+- `docs/metrics-protocol.md`
 
 ## 2. 当前完成状态
 
@@ -141,6 +142,7 @@
 - 光照 Pass GPU 时间
 - 与基线图像的平均误差
 - 高光区域误差
+- 编译/启动/切换稳定性
 
 ### 4.4 场景与指标对应关系
 
@@ -181,6 +183,7 @@
 4. 再开始写 Volume 等效光照的数据结构与 shader 路径
 
 每一轮开始前，先填写 `docs/pre-execution-checklist.md`，再执行对应迭代。
+每一轮完成后，必须按 `docs/metrics-protocol.md` 做指标测试，并把结果写入对应迭代日志。
 
 ## 7. 参考论文链接
 
