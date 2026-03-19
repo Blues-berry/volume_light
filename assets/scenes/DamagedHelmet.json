@@ -15,36 +15,36 @@
     "camera": {
         "speed": 0.05,
         "mouseSens": 0.05,
-        "fov": 50.0,
+        "fov": 42.0,
         "nearPlane": 0.1,
         "farPlane": 100.0,
-        "position": [0.0, 0.2, 4.5],
-        "target": [0.0, 0.0, 0.0]
+        "position": [0.35, 0.65, 3.6],
+        "target": [0.0, 0.15, 0.0]
     },
     "directionalLight": {
-        "direction": [-0.3, -1.0, 0.2],
+        "direction": [-0.2, -1.0, 0.45],
         "distance": 20.0,
         "color": [1.0, 1.0, 1.0],
-        "strength": 1.4,
+        "strength": 1.8,
         "zNear": 0.1,
         "zFar": 100.0,
         "orthoSize": 20.0,
         "shadowRes": 2048
     },
     "pointLights": [{
-        "position": [-1.8, 1.2, 2.0],
+        "position": [-1.1, 1.0, 1.8],
         "color": [1.0, 0.7, 0.6],
-        "strength": 1.0,
+        "strength": 2.0,
         "zNear": 0.1,
-        "zFar": 30.0,
+        "zFar": 12.0,
         "shadowRes": 1024
     },
     {
-        "position": [1.7, 1.0, 1.5],
+        "position": [1.2, 1.1, 1.7],
         "color": [0.6, 0.8, 1.0],
-        "strength": 1.0,
+        "strength": 2.0,
         "zNear": 0.1,
-        "zFar": 30.0,
+        "zFar": 12.0,
         "shadowRes": 1024
     }]
 }
