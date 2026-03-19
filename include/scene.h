@@ -48,6 +48,9 @@ class Scene{
         Camera * getCurrentCamera();
         PointLight *getPointLight(unsigned int index);
         unsigned int getShadowRes();
+        bool isDirectionalShadowDirty() const;
+        void clearDirectionalShadowDirty();
+        void markDirectionalShadowDirty();
 
         //Tired of making things private, making them public as I go and we'll fix the rest later
         CubeMap irradianceMap, specFilteredMap;

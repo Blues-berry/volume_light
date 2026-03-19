@@ -51,6 +51,11 @@ class RenderManager{
         //TODO:: rewrite shadow mapping to be dynamic and fast and make use of cluster shading
         //and some new low driver overhead stuff I've been reading about
         bool preProcess(); 
+        void updateLightSSBO();
+        void resetLightCullingCounter();
+        void updateDirectionalShadowMap(bool forceRefresh = false);
+        void beginGpuTimer(unsigned int queryID);
+        float endGpuTimer(unsigned int queryID);
 
         //Functions used to break up the main render function into more manageable parts.
         void postProcess(const unsigned int start);
@@ -88,13 +93,32 @@ class RenderManager{
         unsigned int sizeX, sizeY;
 
         unsigned int numLights;
+        unsigned int activePointLights = 0;
         const unsigned int maxLights = 1000; // pretty overkill for sponza, but ok for testing
         const unsigned int maxLightsPerTile = 50;
+        const unsigned int maxShadowCastingPointLights = 4;
 
         //Shader buffer objects, currently completely managed by the rendermanager class for creation
         //using and uploading to the gpu, but they should be moved somwehre else to avoid bloat
         unsigned int AABBvolumeGridSSBO, screenToViewSSBO;
         unsigned int lightSSBO, lightIndexListSSBO, lightGridSSBO, lightIndexGlobalCountSSBO;
+        unsigned int dirShadowTimerQuery = 0;
+        unsigned int depthPrepassTimerQuery = 0;
+        unsigned int cullLightsTimerQuery = 0;
+        unsigned int shadingTimerQuery = 0;
+        unsigned int postProcessTimerQuery = 0;
+
+        float dirShadowTimeMs = 0.0f;
+        float depthPrepassTimeMs = 0.0f;
+        float cullLightsTimeMs = 0.0f;
+        float shadingTimeMs = 0.0f;
+        float postProcessTimeMs = 0.0f;
+        float approxLightBufferMB = 0.0f;
+        float approxLightIndexBufferMB = 0.0f;
+        float approxLightGridBufferMB = 0.0f;
+        float approxClusterBufferMB = 0.0f;
+        bool forceDirShadowRefresh = false;
+        bool gpuProfilingEnabled = true;
 
         //Render pipeline FrameBuffer objects. I absolutely hate that the pointlight shadows have distinct
         //FBO's instead of one big one. I think we will take the approach that is outlined on the Id tech 6 talk

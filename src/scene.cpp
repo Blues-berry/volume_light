@@ -10,6 +10,7 @@ DATE	     : 2018-09-12
 #include "fileManager.h"
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 #include "imgui/imgui.h"
 
 Scene::Scene(const std::string &sceneName){
@@ -133,10 +134,14 @@ void Scene::drawFullScene(const Shader &mainSceneShader,const  Shader &skyboxSha
     //Setting colors in the gui
     if(ImGui::CollapsingHeader("Directional Light Settings")){
         ImGui::TextColored(ImVec4(1,1,1,1), "Directional light Settings");
-        ImGui::ColorEdit3("Color", (float *)&dirLight.color);
-        ImGui::SliderFloat("Strength", &dirLight.strength, 0.1f, 200.0f);
-        ImGui::SliderFloat("BoxSize", &dirLight.orthoBoxSize, 0.1f, 500.0f);
-        ImGui::SliderFloat3("Direction", (float*)&dirLight.direction, -5.0f, 5.0f);
+        bool dirLightChanged = false;
+        dirLightChanged |= ImGui::ColorEdit3("Color", (float *)&dirLight.color);
+        dirLightChanged |= ImGui::SliderFloat("Strength", &dirLight.strength, 0.1f, 200.0f);
+        dirLightChanged |= ImGui::SliderFloat("BoxSize", &dirLight.orthoBoxSize, 0.1f, 500.0f);
+        dirLightChanged |= ImGui::SliderFloat3("Direction", (float*)&dirLight.direction, -5.0f, 5.0f);
+        if(dirLightChanged){
+            markDirectionalShadowDirty();
+        }
     }
 
     mainSceneShader.use();
@@ -150,6 +155,7 @@ void Scene::drawFullScene(const Shader &mainSceneShader,const  Shader &skyboxSha
     mainSceneShader.setVec3("cameraPos_wS", mainCamera->position);
     mainSceneShader.setFloat("zFar", mainCamera->cameraFrustum.farPlane);
     mainSceneShader.setFloat("zNear", mainCamera->cameraFrustum.nearPlane);
+    mainSceneShader.setInt("shadowCastingPointLightCount", (int)std::min(pointLightCount, 4u));
 
     for (unsigned int i = 0; i < pointLightCount; ++i)
     {
@@ -247,6 +253,18 @@ unsigned int Scene::getShadowRes(){
 PointLight *Scene::getPointLight(unsigned int index){
     return &pointLights[index];
 }
+
+bool Scene::isDirectionalShadowDirty() const{
+    return dirLight.changed;
+}
+
+void Scene::clearDirectionalShadowDirty(){
+    dirLight.changed = false;
+}
+
+void Scene::markDirectionalShadowDirty(){
+    dirLight.changed = true;
+}
 //-----------------------------SCENE LOADING-----------------------------------
 
 //Config file parsing, gets all the important 
@@ -331,6 +349,7 @@ void Scene::loadLights(const json &sceneConfigJson){
                                         glm::vec3(0.0f, 1.0f, 0.0f));
 
         dirLight.lightSpaceMatrix = dirLight.shadowProjectionMat * dirLight.lightView;
+        dirLight.changed = true;
     }
     //Point lights
     printf("Loading point light...\n");
@@ -370,6 +389,7 @@ void Scene::loadLights(const json &sceneConfigJson){
             pointLights[i].lookAtPerFace[3] = glm::lookAt(lightPos, lightPos + glm::vec3(0.0, -1.0, 0.0), glm::vec3(0.0, 0.0, -1.0));
             pointLights[i].lookAtPerFace[4] = glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, 1.0), glm::vec3(0.0, -1.0, 0.0));
             pointLights[i].lookAtPerFace[5] = glm::lookAt(lightPos, lightPos + glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.0, -1.0, 0.0));
+            pointLights[i].changed = true;
         }
     }
 }

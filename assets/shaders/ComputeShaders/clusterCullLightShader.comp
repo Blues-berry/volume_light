@@ -49,14 +49,22 @@ layout (std430, binding = 6) buffer globalIndexCountSSBO{
 shared PointLight sharedLights[16*9*4];
 
 uniform mat4 viewMatrix;
+uniform uint activeLightCount;
 
 bool testSphereAABB(uint light, uint tile);
 float sqDistPointAABB(vec3 point, uint tile);
 
 void main(){
-    globalIndexCount = 0;
     uint threadCount = gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z;
-    uint lightCount  = pointLight.length();
+    uint lightCount  = activeLightCount;
+
+    if(lightCount == 0u){
+        uint tileIndex = gl_LocalInvocationIndex + gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z * gl_WorkGroupID.z;
+        lightGrid[tileIndex].offset = 0u;
+        lightGrid[tileIndex].count = 0u;
+        return;
+    }
+
     uint numBatches = (lightCount + threadCount -1) / threadCount;
 
     uint tileIndex = gl_LocalInvocationIndex + gl_WorkGroupSize.x * gl_WorkGroupSize.y * gl_WorkGroupSize.z * gl_WorkGroupID.z;
@@ -66,12 +74,16 @@ void main(){
 
     for( uint batch = 0; batch < numBatches; ++batch){
         uint lightIndex = batch * threadCount + gl_LocalInvocationIndex;
+        bool lightInRange = lightIndex < lightCount;
 
-        //Prevent overflow by clamping to last light which is always null
-        lightIndex = min(lightIndex, lightCount);
+        //Prevent overflow by clamping to the last valid light.
+        lightIndex = min(lightIndex, lightCount - 1u);
 
         //Populating shared light array
         sharedLights[gl_LocalInvocationIndex] = pointLight[lightIndex];
+        if(!lightInRange){
+            sharedLights[gl_LocalInvocationIndex].enabled = 0u;
+        }
         barrier();
 
         //Iterating within the current batch of lights

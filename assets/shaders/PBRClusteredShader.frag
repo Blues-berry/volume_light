@@ -96,6 +96,7 @@ uniform samplerCube depthMaps[SHADOW_CASTING_POINT_LIGHTS];
 uniform float far_plane;
 uniform float zFar;
 uniform float zNear;
+uniform int shadowCastingPointLightCount;
 
 //TODO:: Instead of bools I could detect upstream if I am going to need these things and have different shaders?
 //Or maybe have default ao and normal map values that they can read instead so no if/else branching is necessary
@@ -301,7 +302,10 @@ vec3 calcPointLight(uint index, vec3 normal, vec3 fragPos,
 
     //shadow stuff
     vec3 fragToLight = fragPos - position;
-    float shadow = calcPointLightShadows(depthMaps[index], fragToLight, viewDistance);
+    float shadow = 0.0;
+    if(int(index) < shadowCastingPointLightCount){
+        shadow = calcPointLightShadows(depthMaps[index], fragToLight, viewDistance);
+    }
     
     radiance *= (1.0 - shadow);
 

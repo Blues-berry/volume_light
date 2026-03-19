@@ -12,6 +12,10 @@ DATE	     : 2018-09-13
 #include "gpuData.h"
 #include "cmath"
 
+namespace {
+constexpr float BYTES_TO_MB = 1.0f / (1024.0f * 1024.0f);
+}
+
 //Dummy constructors / Destructors
 RenderManager::RenderManager(){}
 RenderManager::~RenderManager(){}
@@ -103,13 +107,72 @@ bool RenderManager::preProcess(){
         currentScene->drawPointLightShadow(pointShadowShader,i, pointLightShadowFBOs[i].depthBuffer);
     }
 
-    // Directional shadows
-    dirShadowFBO.bind();
-    dirShadowFBO.clear(GL_DEPTH_BUFFER_BIT, glm::vec3(1.0f));
-    currentScene->drawDirLightShadows(dirShadowShader, dirShadowFBO.depthBuffer);
+    updateDirectionalShadowMap(true);
     
     //As we add more error checking this will change from a dummy variable to an actual thing
     return true;
+}
+
+void RenderManager::updateLightSSBO(){
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
+
+    std::vector<GPULight> lights(numLights);
+    for(unsigned int i = 0; i < numLights; ++i ){
+        PointLight *light = currentScene->getPointLight(i);
+        GPULight gpuLight = {};
+        gpuLight.position  = glm::vec4(light->position, 1.0f);
+        gpuLight.color     = glm::vec4(light->color, 1.0f);
+        gpuLight.enabled   = (i < activePointLights) ? 1u : 0u;
+        gpuLight.intensity = light->strength;
+        gpuLight.range     = light->zFar;
+        lights[i] = gpuLight;
+    }
+
+    if(!lights.empty()){
+        glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, lights.size() * sizeof(GPULight), lights.data());
+    }
+
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void RenderManager::resetLightCullingCounter(){
+    const unsigned int zero = 0;
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightIndexGlobalCountSSBO);
+    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(unsigned int), &zero);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+}
+
+void RenderManager::updateDirectionalShadowMap(bool forceRefresh){
+    if(!forceRefresh && !forceDirShadowRefresh && !currentScene->isDirectionalShadowDirty()){
+        dirShadowTimeMs = 0.0f;
+        return;
+    }
+
+    beginGpuTimer(dirShadowTimerQuery);
+    dirShadowFBO.bind();
+    dirShadowFBO.clear(GL_DEPTH_BUFFER_BIT, glm::vec3(1.0f));
+    currentScene->drawDirLightShadows(dirShadowShader, dirShadowFBO.depthBuffer);
+    dirShadowTimeMs = endGpuTimer(dirShadowTimerQuery);
+
+    currentScene->clearDirectionalShadowDirty();
+    forceDirShadowRefresh = false;
+}
+
+void RenderManager::beginGpuTimer(unsigned int queryID){
+    if(!gpuProfilingEnabled){
+        return;
+    }
+    glBeginQuery(GL_TIME_ELAPSED, queryID);
+}
+
+float RenderManager::endGpuTimer(unsigned int queryID){
+    if(!gpuProfilingEnabled){
+        return 0.0f;
+    }
+    glEndQuery(GL_TIME_ELAPSED);
+    GLuint64 elapsedTime = 0;
+    glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &elapsedTime);
+    return static_cast<float>(elapsedTime) / 1000000.0f;
 }
 
 //TODO:: some of the buffer generation and binding should be abstracted into a function
@@ -158,22 +221,7 @@ bool RenderManager::initSSBOs(){
     {
         glGenBuffers(1, &lightSSBO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightSSBO);
-        glBufferData(GL_SHADER_STORAGE_BUFFER, maxLights * sizeof(struct GPULight), NULL, GL_DYNAMIC_DRAW);
-
-        GLint bufMask = GL_READ_WRITE;
-
-        struct GPULight *lights = (struct GPULight *)glMapBuffer(GL_SHADER_STORAGE_BUFFER, bufMask);
-        PointLight *light;
-        for(unsigned int i = 0; i < numLights; ++i ){
-            //Fetching the light from the current scene
-            light = currentScene->getPointLight(i);
-            lights[i].position  = glm::vec4(light->position, 1.0f);
-            lights[i].color     = glm::vec4(light->color, 1.0f);
-            lights[i].enabled   = 1; 
-            lights[i].intensity = light->strength;
-            lights[i].range     = light->zFar;
-        }
-        glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+        glBufferData(GL_SHADER_STORAGE_BUFFER, numLights * sizeof(struct GPULight), NULL, GL_DYNAMIC_DRAW);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, lightSSBO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
@@ -213,6 +261,20 @@ bool RenderManager::initSSBOs(){
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 6, lightIndexGlobalCountSSBO);
         glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
     }
+
+    activePointLights = numLights;
+    updateLightSSBO();
+
+    approxClusterBufferMB = (numClusters * sizeof(struct VolumeTileAABB)) * BYTES_TO_MB;
+    approxLightBufferMB = (numLights * sizeof(struct GPULight)) * BYTES_TO_MB;
+    approxLightIndexBufferMB = (numClusters * maxLightsPerTile * sizeof(unsigned int)) * BYTES_TO_MB;
+    approxLightGridBufferMB = (numClusters * 2 * sizeof(unsigned int)) * BYTES_TO_MB;
+
+    glGenQueries(1, &dirShadowTimerQuery);
+    glGenQueries(1, &depthPrepassTimerQuery);
+    glGenQueries(1, &cullLightsTimerQuery);
+    glGenQueries(1, &shadingTimerQuery);
+    glGenQueries(1, &postProcessTimerQuery);
    
     return true;
 }
@@ -329,8 +391,21 @@ void RenderManager::render(const unsigned int start){
     ImGui::Begin("Rendering Controls");
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::Text("Current Scene: %s", sceneLocator->getCurrentSceneID().c_str());
-    ImGui::Text("Point Lights: %u", currentScene->pointLightCount);
+    ImGui::Text("Point Lights: %u total / %u active", currentScene->pointLightCount, activePointLights);
     ImGui::Text("Grid Size: %u x %u x %u", gridSizeX, gridSizeY, gridSizeZ);
+    ImGui::Text("Cluster AABB SSBO: %.3f MB", approxClusterBufferMB);
+    ImGui::Text("Light SSBO: %.3f MB", approxLightBufferMB);
+    ImGui::Text("Light Index SSBO: %.3f MB", approxLightIndexBufferMB);
+    ImGui::Text("Light Grid SSBO: %.3f MB", approxLightGridBufferMB);
+    ImGui::Checkbox("Enable GPU Profiling", &gpuProfilingEnabled);
+    ImGui::Text("Dir Shadow: %.3f ms", dirShadowTimeMs);
+    ImGui::Text("Depth Prepass: %.3f ms", depthPrepassTimeMs);
+    ImGui::Text("Light Culling: %.3f ms", cullLightsTimeMs);
+    ImGui::Text("Shading: %.3f ms", shadingTimeMs);
+    ImGui::Text("Post Process: %.3f ms", postProcessTimeMs);
+    if(activePointLights > 0){
+        ImGui::Text("Cull ms/light: %.4f", cullLightsTimeMs / static_cast<float>(activePointLights));
+    }
 
     if(ImGui::CollapsingHeader("Controls")){
         ImGui::Text("Strafe: w a s d");
@@ -341,36 +416,51 @@ void RenderManager::render(const unsigned int start){
         ImGui::InputFloat3("Camera Pos", (float*)&sceneCamera->position); //Camera controls
         ImGui::SliderFloat("Movement speed", &sceneCamera->camSpeed, 0.005f, 1.0f);
     }
+    int activeLightsUi = static_cast<int>(activePointLights);
+    if(ImGui::SliderInt("Active Point Lights", &activeLightsUi, 0, static_cast<int>(numLights))){
+        activePointLights = static_cast<unsigned int>(activeLightsUi);
+        updateLightSSBO();
+    }
+    if(ImGui::Button("Refresh Directional Shadow")){
+        forceDirShadowRefresh = true;
+    }
     //Making sure depth testing is enabled 
     glEnable(GL_DEPTH_TEST);
     glDepthMask(true);
 
-    // Directional shadows
-    dirShadowFBO.bind();
-    dirShadowFBO.clear(GL_DEPTH_BUFFER_BIT, glm::vec3(1.0f));
-    currentScene->drawDirLightShadows(dirShadowShader, dirShadowFBO.depthBuffer);
+    updateDirectionalShadowMap();
 
     //1.1- Multisampled Depth pre-pass
+    beginGpuTimer(depthPrepassTimerQuery);
     multiSampledFBO.bind();
     multiSampledFBO.clear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, glm::vec3(0.0f));
     currentScene->drawDepthPass(depthPrePassShader);
+    depthPrepassTimeMs = endGpuTimer(depthPrepassTimerQuery);
 
     //4-Light assignment
+    resetLightCullingCounter();
+    beginGpuTimer(cullLightsTimerQuery);
     cullLightsCompShader.use();
     cullLightsCompShader.setMat4("viewMatrix", sceneCamera->viewMatrix);
+    cullLightsCompShader.setInt("activeLightCount", static_cast<int>(activePointLights));
     cullLightsCompShader.dispatch(1,1,6);  
+    cullLightsTimeMs = endGpuTimer(cullLightsTimerQuery);
 
     //5 - Actual shading;
     //5.1 - Forward render the scene in the multisampled FBO using the z buffer to discard early
+    beginGpuTimer(shadingTimerQuery);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(false);
     currentScene->drawFullScene(PBRClusteredShader, skyboxShader);
+    shadingTimeMs = endGpuTimer(shadingTimerQuery);
 
     //5.2 - resolve the from multisampled to normal resolution for postProcessing
     multiSampledFBO.blitTo(simpleFBO, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     //6 -postprocessing, includes bloom, exposure mapping
+    beginGpuTimer(postProcessTimerQuery);
     postProcess(start);
+    postProcessTimeMs = endGpuTimer(postProcessTimerQuery);
 
     //Rendering gui scope ends here cannot be done later because the whole frame
     //is reset in the display buffer swap
