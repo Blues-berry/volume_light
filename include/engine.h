@@ -29,7 +29,7 @@ struct Engine{
   void shutDown();
 
   //Contains all high level logic and the main application loop
-  void run();
+  void run(unsigned int maxFrames = 0);
 
   //Instances of each major subsystem
   DisplayManager gDisplayManager;

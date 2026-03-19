@@ -155,9 +155,10 @@ void Scene::drawFullScene(const Shader &mainSceneShader,const  Shader &skyboxSha
     mainSceneShader.setVec3("cameraPos_wS", mainCamera->position);
     mainSceneShader.setFloat("zFar", mainCamera->cameraFrustum.farPlane);
     mainSceneShader.setFloat("zNear", mainCamera->cameraFrustum.nearPlane);
-    mainSceneShader.setInt("shadowCastingPointLightCount", (int)std::min(pointLightCount, 4u));
+    const unsigned int shadowCastingPointLightCount = std::min(pointLightCount, 4u);
+    mainSceneShader.setInt("shadowCastingPointLightCount", (int)shadowCastingPointLightCount);
 
-    for (unsigned int i = 0; i < pointLightCount; ++i)
+    for (unsigned int i = 0; i < shadowCastingPointLightCount; ++i)
     {
         PointLight *light = &pointLights[i];
         std::string number = std::to_string(i);
@@ -169,24 +170,24 @@ void Scene::drawFullScene(const Shader &mainSceneShader,const  Shader &skyboxSha
     }   
 
     //Setting directional shadow depth map textures
-    glActiveTexture(GL_TEXTURE0 + numTextures + pointLightCount);
-    mainSceneShader.setInt("shadowMap", numTextures + pointLightCount);
+    glActiveTexture(GL_TEXTURE0 + numTextures + shadowCastingPointLightCount);
+    mainSceneShader.setInt("shadowMap", numTextures + shadowCastingPointLightCount);
     glBindTexture(GL_TEXTURE_2D, dirLight.depthMapTextureID);
 
     //TODO:: Formalize htis a bit more
     //Setting environment map texture
-    glActiveTexture(GL_TEXTURE0 + numTextures + pointLightCount + 1);
-    mainSceneShader.setInt("irradianceMap", numTextures + pointLightCount + 1);
+    glActiveTexture(GL_TEXTURE0 + numTextures + shadowCastingPointLightCount + 1);
+    mainSceneShader.setInt("irradianceMap", numTextures + shadowCastingPointLightCount + 1);
     glBindTexture(GL_TEXTURE_CUBE_MAP, irradianceMap.textureID);
 
     //Setting environment map texture for specular
-    glActiveTexture(GL_TEXTURE0 + numTextures + pointLightCount + 2);
-    mainSceneShader.setInt("prefilterMap", numTextures + pointLightCount + 2);
+    glActiveTexture(GL_TEXTURE0 + numTextures + shadowCastingPointLightCount + 2);
+    mainSceneShader.setInt("prefilterMap", numTextures + shadowCastingPointLightCount + 2);
     glBindTexture(GL_TEXTURE_CUBE_MAP, specFilteredMap.textureID);
 
     //Setting lookup table
-    glActiveTexture(GL_TEXTURE0 + numTextures + pointLightCount + 3);
-    mainSceneShader.setInt("brdfLUT", numTextures + pointLightCount + 3);
+    glActiveTexture(GL_TEXTURE0 + numTextures + shadowCastingPointLightCount + 3);
+    mainSceneShader.setInt("brdfLUT", numTextures + shadowCastingPointLightCount + 3);
     glBindTexture(GL_TEXTURE_2D, brdfLUTTexture.textureID);
 
     for(unsigned int i = 0; i < visibleModels.size(); ++i){

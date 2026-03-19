@@ -11,9 +11,15 @@ DATE	     : 2018-09-08
 #include "glm/glm.hpp"
 #include "fileManager.h"
 #include "glad/glad.h"
+#include "assimp/pbrmaterial.h"
 #include <string>
 
 namespace {
+struct TextureQuery {
+    aiTextureType type;
+    unsigned int index;
+};
+
 unsigned int createSolidTexture(
     std::unordered_map<std::string, Texture>& textureAtlas,
     const std::string& key,
@@ -47,30 +53,44 @@ unsigned int createSolidTexture(
     return textureID;
 }
 
-unsigned int loadTextureForTypes(
+unsigned int loadTextureAt(
     const aiMaterial* material,
     const std::string& directory,
     std::unordered_map<std::string, Texture>& textureAtlas,
-    std::initializer_list<aiTextureType> textureTypes,
+    aiTextureType textureType,
+    unsigned int textureIndex,
     bool srgb)
 {
     aiString texturePath;
-    for (aiTextureType type : textureTypes) {
-        if (material->GetTextureCount(type) == 0) {
-            continue;
+    if (material->GetTextureCount(textureType) <= textureIndex) {
+        return 0;
+    }
+
+    std::string fullTexturePath = directory;
+    material->GetTexture(textureType, textureIndex, &texturePath);
+    fullTexturePath.append(texturePath.C_Str());
+
+    if (textureAtlas.count(fullTexturePath) == 0) {
+        Texture texture;
+        texture.loadTexture(fullTexturePath, srgb);
+        textureAtlas.insert({fullTexturePath, texture});
+    }
+
+    return textureAtlas.at(fullTexturePath).textureID;
+}
+
+unsigned int loadTextureFromQueries(
+    const aiMaterial* material,
+    const std::string& directory,
+    std::unordered_map<std::string, Texture>& textureAtlas,
+    std::initializer_list<TextureQuery> queries,
+    bool srgb)
+{
+    for (const TextureQuery& query : queries) {
+        unsigned int textureID = loadTextureAt(material, directory, textureAtlas, query.type, query.index, srgb);
+        if (textureID != 0) {
+            return textureID;
         }
-
-        std::string fullTexturePath = directory;
-        material->GetTexture(type, 0, &texturePath);
-        fullTexturePath.append(texturePath.C_Str());
-
-        if (textureAtlas.count(fullTexturePath) == 0) {
-            Texture texture;
-            texture.loadTexture(fullTexturePath, srgb);
-            textureAtlas.insert({fullTexturePath, texture});
-        }
-
-        return textureAtlas.at(fullTexturePath).textureID;
     }
 
     return 0;
@@ -196,7 +216,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene){
     aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
     textures = processTextures(material);
 
-    return Mesh(vertices, indices, textures);
+    return Mesh(vertices, indices, textures, mesh->HasTangentsAndBitangents());
 }
 
 /*
@@ -209,39 +229,54 @@ std::vector<unsigned int> Model::processTextures(const aiMaterial *material){
 
     // Expected shader slot order:
     // 0 albedo, 1 emissive, 2 normals, 3 AO/lightmap, 4 metallic-roughness
-    textures[0] = loadTextureForTypes(
+    textures[0] = loadTextureFromQueries(
         material,
         directory,
         textureAtlas,
-        {aiTextureType_DIFFUSE},
+        {
+            {aiTextureType_DIFFUSE, 1},
+            {aiTextureType_DIFFUSE, 0}
+        },
         true);
 
-    textures[1] = loadTextureForTypes(
+    textures[1] = loadTextureFromQueries(
         material,
         directory,
         textureAtlas,
-        {aiTextureType_EMISSIVE},
+        {
+            {aiTextureType_EMISSIVE, 0}
+        },
         true);
 
-    textures[2] = loadTextureForTypes(
+    textures[2] = loadTextureFromQueries(
         material,
         directory,
         textureAtlas,
-        {aiTextureType_NORMALS, aiTextureType_HEIGHT},
+        {
+            {aiTextureType_NORMALS, 0},
+            {aiTextureType_HEIGHT, 0}
+        },
         false);
 
-    textures[3] = loadTextureForTypes(
+    textures[3] = loadTextureFromQueries(
         material,
         directory,
         textureAtlas,
-        {aiTextureType_LIGHTMAP, aiTextureType_AMBIENT},
+        {
+            {aiTextureType_LIGHTMAP, 0},
+            {aiTextureType_AMBIENT, 0}
+        },
         false);
 
-    textures[4] = loadTextureForTypes(
+    textures[4] = loadTextureFromQueries(
         material,
         directory,
         textureAtlas,
-        {aiTextureType_UNKNOWN, aiTextureType_SPECULAR, aiTextureType_SHININESS},
+        {
+            {aiTextureType_UNKNOWN, 0},
+            {aiTextureType_SPECULAR, 0},
+            {aiTextureType_SHININESS, 0}
+        },
         false);
 
     if (textures[0] == 0) {
@@ -249,6 +284,12 @@ std::vector<unsigned int> Model::processTextures(const aiMaterial *material){
     }
     if (textures[1] == 0) {
         textures[1] = createSolidTexture(textureAtlas, "__default_emissive_black__", 0, 0, 0, 255);
+    }
+    if (textures[2] == 0) {
+        textures[2] = createSolidTexture(textureAtlas, "__default_normal_flat__", 128, 128, 255, 255);
+    }
+    if (textures[3] == 0) {
+        textures[3] = createSolidTexture(textureAtlas, "__default_ao_white__", 255, 255, 255, 255);
     }
     if (textures[4] == 0) {
         textures[4] = createSolidTexture(textureAtlas, "__default_metalrough__", 0, 255, 0, 255);

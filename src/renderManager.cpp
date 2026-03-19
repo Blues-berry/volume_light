@@ -101,7 +101,8 @@ bool RenderManager::preProcess(){
     glDepthMask(true);
 
     //Populating depth cube maps for the point light shadows
-    for (unsigned int i = 0; i < currentScene->pointLightCount; ++i){
+    unsigned int shadowCastingLights = getShadowCastingPointLightCount();
+    for (unsigned int i = 0; i < shadowCastingLights; ++i){
         pointLightShadowFBOs[i].bind();
         pointLightShadowFBOs[i].clear(GL_DEPTH_BUFFER_BIT, glm::vec3(1.0f));
         currentScene->drawPointLightShadow(pointShadowShader,i, pointLightShadowFBOs[i].depthBuffer);
@@ -158,6 +159,10 @@ void RenderManager::updateDirectionalShadowMap(bool forceRefresh){
     forceDirShadowRefresh = false;
 }
 
+unsigned int RenderManager::getShadowCastingPointLightCount() const{
+    return std::min(activePointLights, std::min(numLights, maxShadowCastingPointLights));
+}
+
 void RenderManager::beginGpuTimer(unsigned int queryID){
     if(!gpuProfilingEnabled){
         return;
@@ -173,6 +178,33 @@ float RenderManager::endGpuTimer(unsigned int queryID){
     GLuint64 elapsedTime = 0;
     glGetQueryObjectui64v(queryID, GL_QUERY_RESULT, &elapsedTime);
     return static_cast<float>(elapsedTime) / 1000000.0f;
+}
+
+void RenderManager::printPerformanceSummary(unsigned int frameCount, float averageFrameTimeMs) const{
+    const float fps = averageFrameTimeMs > 0.0f ? (1000.0f / averageFrameTimeMs) : 0.0f;
+    printf("Scene: %s\n", sceneLocator->getCurrentSceneID().c_str());
+    printf("FPS: %.2f\n", fps);
+    printf("Point lights: %u total / %u active / %u shadowed\n",
+           currentScene->pointLightCount,
+           activePointLights,
+           getShadowCastingPointLightCount());
+    printf("Cluster grid: %u x %u x %u (%u clusters)\n",
+           gridSizeX, gridSizeY, gridSizeZ, numClusters);
+    printf("Stage timings (last frame, ms): dirShadow=%.3f depthPrepass=%.3f cull=%.3f shading=%.3f post=%.3f\n",
+           dirShadowTimeMs,
+           depthPrepassTimeMs,
+           cullLightsTimeMs,
+           shadingTimeMs,
+           postProcessTimeMs);
+    if(activePointLights > 0){
+        printf("Cull ms/light: %.4f\n", cullLightsTimeMs / static_cast<float>(activePointLights));
+    }
+    printf("GPU resource estimate (MB): cluster=%.3f light=%.3f lightIndex=%.3f lightGrid=%.3f\n",
+           approxClusterBufferMB,
+           approxLightBufferMB,
+           approxLightIndexBufferMB,
+           approxLightGridBufferMB);
+    printf("Sampled frames: %u\n", frameCount);
 }
 
 //TODO:: some of the buffer generation and binding should be abstracted into a function
@@ -338,13 +370,14 @@ bool RenderManager::initFBOs(){
     bool stillValid = true;
 
     //Shadow Framebuffers
-    pointLightShadowFBOs = new PointShadowBuffer[numLights];
+    unsigned int shadowCastingLights = std::min(numLights, maxShadowCastingPointLights);
+    pointLightShadowFBOs = (shadowCastingLights > 0) ? new PointShadowBuffer[shadowCastingLights] : nullptr;
 
     //Directional light
     stillValid  &= dirShadowFBO.setupFrameBuffer(shadowMapResolution, shadowMapResolution);
 
     //Point light
-    for(unsigned int i = 0; i < numLights; ++i ){
+    for(unsigned int i = 0; i < shadowCastingLights; ++i ){
         stillValid &= pointLightShadowFBOs[i].setupFrameBuffer(shadowMapResolution, shadowMapResolution);
     }
 
@@ -443,7 +476,7 @@ void RenderManager::render(const unsigned int start){
     cullLightsCompShader.use();
     cullLightsCompShader.setMat4("viewMatrix", sceneCamera->viewMatrix);
     cullLightsCompShader.setInt("activeLightCount", static_cast<int>(activePointLights));
-    cullLightsCompShader.dispatch(1,1,6);  
+    cullLightsCompShader.dispatch(1,1,gridSizeZ / 4);  
     cullLightsTimeMs = endGpuTimer(cullLightsTimerQuery);
 
     //5 - Actual shading;

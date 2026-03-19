@@ -9,6 +9,7 @@ DATE	     : 2018-09-05
 #include "engine.h"
 #include "SDL.h"
 #include <stdio.h>
+#include <algorithm>
 
 //Dummy constructors and destructors
 Engine::Engine(){}
@@ -67,7 +68,7 @@ void Engine::shutDown(){
 }
 
 //Runs main application loop 
-void Engine::run(){
+void Engine::run(unsigned int maxFrames){
 
     //Early exit or other shared data flags
     bool done = false;
@@ -96,11 +97,18 @@ void Engine::run(){
         //Obtaining deltaT for any 
         deltaT = SDL_GetTicks() - start;
         total += deltaT;
+
+        if(maxFrames > 0 && static_cast<unsigned int>(count) >= maxFrames){
+            done = true;
+        }
     }
     
     //Average performance over the whole loop (excludes load time costs)
+    float averageFrameTime = (count > 0) ? (total / (float)count) : 0.0f;
     printf("\nPerformance Stats:\n------------------\n");
-    printf("Average frame time over %2.1d frames:%2.fms.\n\n", count, total/(float)count);
+    printf("Average frame time over %2.1d frames:%2.fms.\n", count, averageFrameTime);
+    gRenderManager.printPerformanceSummary(static_cast<unsigned int>(count), averageFrameTime);
+    printf("\n");
     printf("Closing down engine...\n");
 }
 

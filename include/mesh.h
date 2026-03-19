@@ -36,14 +36,17 @@ struct Mesh {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     std::vector<unsigned int> textures;
+    bool supportsNormalMap = false;
 
     Mesh(const std::vector<Vertex> &vertices,
          const std::vector<unsigned int> &indices,
-         const std::vector<unsigned int> &textures)
+         const std::vector<unsigned int> &textures,
+         bool supportsNormalMap = false)
     {
         this->vertices = vertices;
         this->indices  = indices;
         this->textures = textures;
+        this->supportsNormalMap = supportsNormalMap;
 
         setupMesh();
     }

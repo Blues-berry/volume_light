@@ -250,7 +250,11 @@ vec3 calcDirLight(DirLight light, vec3 normal, vec3 viewDir, vec3 albedo, float 
 float calcDirShadow(vec4 fragPosLightSpace){
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
     projCoords = projCoords * 0.5 + 0.5;
-    float bias = 0.0;
+    if(projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0){
+        return 0.0;
+    }
+
+    float bias = 0.0015;
     int   samples = 9;
     float shadow = 0.0;
 
@@ -316,14 +320,14 @@ vec3 calcPointLight(uint index, vec3 normal, vec3 fragPos,
 //This will probably be re-written as soon as the shadow mapping update comes in
 float calcPointLightShadows(samplerCube depthMap, vec3 fragToLight, float viewDistance){
     float shadow      = 0.0;
-    float bias        = 0.0;
+    float bias        = 0.03;
     int   samples     = 8;
     float fraction    = 1.0/float(samples);
     float diskRadius  = (1.0 + (viewDistance / far_plane)) / 25.0;
     float currentDepth = (length(fragToLight) - bias);
 
     for(int i = 0; i < samples; ++i){
-        float closestDepth = texture(depthMap, fragToLight + sampleOffsetDirections[i], diskRadius).r;
+        float closestDepth = texture(depthMap, fragToLight + sampleOffsetDirections[i] * diskRadius).r;
         closestDepth *= far_plane;
         if(currentDepth > closestDepth){
             shadow += fraction;

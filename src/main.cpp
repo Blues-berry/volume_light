@@ -8,17 +8,22 @@ PURPOSE      : Program Initialization and shutdown.
 
 #include "engine.h"
 #include <stdio.h>
+#include <cstdlib>
 
 //Hybrid Rendering Engine
 int main( int argc, char* args[] ){
     std::string initialSceneID = "Sponza";
+    unsigned int maxFrames = 0;
     if(argc > 1){
         initialSceneID = args[1];
+    }
+    if(argc > 2){
+        maxFrames = static_cast<unsigned int>(std::strtoul(args[2], nullptr, 10));
     }
 
     Engine HRE;
     if(HRE.startUp(initialSceneID)){
-        HRE.run();
+        HRE.run(maxFrames);
     }
     else{
         printf("HRE could not initialize successfully. Shutting down.\n");

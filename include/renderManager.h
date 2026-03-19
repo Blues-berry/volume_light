@@ -36,6 +36,7 @@ class RenderManager{
         //Gets scene and display info. Will be used to build render Queue
         bool startUp(DisplayManager &displayManager, SceneManager &sceneManager );
         void shutDown();
+        void printPerformanceSummary(unsigned int frameCount, float averageFrameTimeMs) const;
 
         //The core rendering loop of the engine. The steps that it follow are indicated on the cpp file 
         //but it's just a very vanilla Forward+ clustered renderer with barely any bells and whistled or 
@@ -54,6 +55,7 @@ class RenderManager{
         void updateLightSSBO();
         void resetLightCullingCounter();
         void updateDirectionalShadowMap(bool forceRefresh = false);
+        unsigned int getShadowCastingPointLightCount() const;
         void beginGpuTimer(unsigned int queryID);
         float endGpuTimer(unsigned int queryID);
 

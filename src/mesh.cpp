@@ -29,7 +29,7 @@ void Mesh::draw(const Shader &shader, bool textured){
             glBindTexture(GL_TEXTURE_2D, emissiveTexture);
 
             //Normals
-            if (normalTexture == 0){
+            if (normalTexture == 0 || !supportsNormalMap){
                 shader.setBool("normalMapped", false);
             }
             else{
